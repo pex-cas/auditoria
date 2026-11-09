@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CyberSec Audit Engine (HTML)</title>
+<style>
+:root{--bg:#0b1020;--card:#131a30;--bd:#25305a;--tx:#e6ebff;--dim:#8d99c6;--cy:#22d3ee;--c:#ef4444;--h:#f97316;--m:#eab308;--l:#38bdf8;--i:#94a3b8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px system-ui,sans-serif;padding:20px;max-width:1100px;margin:auto}
+h1{font-size:20px;color:var(--cy)}h2{font-size:15px;margin:18px 0 8px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:14px}
+input,select,textarea,button{font:inherit;background:#0d1330;color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:8px}
+input[type=text]{width:100%}button{cursor:pointer;background:var(--cy);color:#04222a;font-weight:700;border:0}button:disabled{opacity:.5}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px}.row>*{flex:1;min-width:140px}
+label{display:block;color:var(--dim);font-size:12px}
+.bar{height:8px;background:#0d1330;border-radius:4px;overflow:hidden}#bar{height:100%;width:0;background:var(--cy);transition:width .3s}
+#term{background:#060913;border-radius:6px;padding:8px;height:180px;overflow:auto;font:12px monospace}
+.l.ERROR{color:var(--c)}.l.WARN{color:var(--m)}.l.SUCCESS{color:#4ade80}.l.PHASE{color:var(--cy)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}.stats div{text-align:center}.stats b{display:block;font-size:26px}
+.f{border-left:4px solid var(--i);background:#0d1330;margin:8px 0;padding:10px;border-radius:6px;cursor:pointer}
+.f.CRÍTICA{border-color:var(--c)}.f.ALTA{border-color:var(--h)}.f.MEDIA{border-color:var(--m)}.f.BAJA{border-color:var(--l)}
+.tag{font-size:11px;padding:2px 6px;border-radius:4px;background:var(--bd);margin-right:6px}.det{display:none;margin-top:8px;color:var(--dim)}.f.open .det{display:block}
+pre{white-space:pre-wrap;background:#060913;padding:8px;border-radius:6px;color:var(--tx)}
+.chip{display:inline-block;background:var(--bd);border-radius:12px;padding:3px 10px;margin:2px}
+.warn{color:var(--m);font-size:12px}
+@media print{body{background:#fff;color:#000}.card,.f{background:#fff;border-color:#999}.noprint,#term{display:none}.f .det{display:block}}
+</style></head><body>
+<h1>⚡ CyberSec Audit Engine — versión HTML/JavaScript</h1>
+<div class="card noprint">
+ <input type="text" id="url" placeholder="http://127.0.0.1:5001  (laboratorio propio o sitio autorizado)">
+ <div class="row">
+  <label>Modo<select id="mode"><option value="active_safe">Activo seguro</option><option value="passive">Pasivo</option></select></label>
+  <label>Velocidad<select id="rate"><option value="1">1 req/s (sigiloso)</option><option value="3" selected>3 req/s</option><option value="5">5 req/s</option><option value="10">10 req/s (solo loopback)</option></select></label>
+  <label>Profundidad<input type="number" id="depth" value="2" min="0" max="5"></label>
+  <label>Máx. páginas<input type="number" id="pages" value="40" min="1" max="200"></label>
+ </div>
+ <details><summary class="warn">Opciones avanzadas</summary>
+  <label>Cabeceras extra (una por línea, ej. Authorization: Bearer ...)<textarea id="hdrs" style="width:100%;height:50px"></textarea></label>
+  <label>URL de login (opcional)<input type="text" id="lurl"></label>
+  <div class="row"><label>Usuario<input type="text" id="luser"></label><label>Contraseña<input type="password" id="lpass"></label>
+  <label>Campo usuario<input type="text" id="lfu" value="username"></label><label>Campo clave<input type="text" id="lfp" value="password"></label></div>
+  <label>URLs semilla (una por línea)<textarea id="seeds" style="width:100%;height:50px"></textarea></label>
+  <label><input type="checkbox" id="post"> Probar formularios POST (solo laboratorio: pueden crear registros)</label>
+ </details>
+ <label style="margin-top:10px"><input type="checkbox" id="consent" checked> Certifico que soy propietario del sitio o tengo autorización expresa para auditarlo.</label>
+ <div class="row"><button id="go">▶ Iniciar auditoría</button><button id="imp" type="button" style="background:var(--bd);color:var(--tx)">Cargar reporte JSON</button><input type="file" id="file" accept=".json" hidden></div>
+</div>
+<div class="card noprint"><div class="bar"><div id="bar"></div></div><div style="text-align:right;color:var(--dim)" id="pct">0%</div><div id="term"></div></div>
+<div class="card"><div class="stats" id="stats"></div><div id="meta" style="margin-top:10px;color:var(--dim)"></div></div>
+<div class="card"><h2>Tecnologías</h2><div id="tech">—</div></div>
+<div class="card"><h2>Hallazgos</h2>
+ <div class="row noprint"><select id="fsev"><option value="">Todas las severidades</option><option>CRÍTICA</option><option>ALTA</option><option>MEDIA</option><option>BAJA</option><option>INFORMACIÓN</option></select>
+ <select id="fst"><option value="">Todos los estados</option><option>CONFIRMADA</option><option>POTENCIAL</option><option>REQUIERE_VALIDACION</option><option>INFORMATIVO</option></select>
+ <input type="text" id="fq" placeholder="Buscar..."></div><div id="list"></div>
+ <div class="row noprint"><button id="exj">⬇ Exportar JSON</button><button id="exp">🖨 Imprimir / PDF</button></div></div>
+
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const PEN={'CRÍTICA':25,'ALTA':15,'MEDIA':7,'BAJA':2,'INFORMACIÓN':0};
+let F=[],T=[],LOGS=[],REP=null,running=false;
+
+function log(m,l='INFO',p){const t=new Date().toLocaleTimeString('es-AR'),s=`[${t}] [${l}] ${m}`;LOGS.push(s);
+ const d=document.createElement('div');d.className='l '+l;d.textContent=s;$('#term').append(d);$('#term').scrollTop=1e9;
+ if(p!=null){$('#bar').style.width=p+'%';$('#pct').textContent=p+'%'}}
+function add(severity,status,title,comp,desc,ev,rem,refs=[]){F.push({id:'F-'+(F.length+1),severity,status,title,affected_component:comp,technical_description:desc,evidence:ev,remediation:rem,references:refs,timestamp:new Date().toISOString()})}
+
+// ---------- Requester: rate limit + alcance + timeout ----------
+class Req{
+ constructor(base,rate,timeout,maxDur,headers){this.base=new URL(base);this.gap=1000/rate;this.next=0;this.to=timeout*1000;this.end=Date.now()+maxDur*1000;this.h=headers}
+ nh(h){return h.toLowerCase().replace(/^www\./,'')}
+ inScope(u){return this.nh(new URL(u).host)===this.nh(this.base.host)}
+ async wait(){const n=Date.now(),t=Math.max(n,this.next);this.next=t+this.gap;if(t>n)await new Promise(r=>setTimeout(r,t-n))}
+ async go(u,o={},retry=true){
+  if(Date.now()>this.end)throw new Error('Tiempo máximo de auditoría agotado');
+  const url=new URL(u,this.base);if(!this.inScope(url))throw new Error('Fuera de alcance: '+url.host);
+  await this.wait();const c=new AbortController(),tm=setTimeout(()=>c.abort(),this.to*(retry?1:2));
+  try{
+   const r=await fetch(url,{method:o.method||'GET',headers:{...this.h,...(o.headers||{})},body:o.body,signal:c.signal,credentials:'include',redirect:'follow'});
+   if(!this.inScope(r.url)){const e=new Error('Redirección fuera de alcance: '+r.url);e.redirect=r.url;throw e}
+   return{status:r.status,url:r.url,headers:r.headers,ct:r.headers.get('content-type')||'',text:await r.text()};
+  }catch(e){if(e.redirect||(o.method&&o.method!=='GET'&&o.method!=='HEAD')||!retry)throw e;return this.go(u,o,false)}
+  finally{clearTimeout(tm)}}
+ get(u,params){const x=new URL(u,this.base);for(const k in params||{})x.searchParams.set(k,params[k]);return this.go(x)}
+ post(u,data){return this.go(u,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(data)})}
+}
+
+// ---------- Cabeceras ----------
+function analyzeHeaders(r,base){
+ const h=n=>r.headers.get(n),c=base;let n=0;
+ const need=(name,sev,desc,rem)=>{if(!h(name)){n++;add(sev,'CONFIRMADA',`Cabecera ausente: ${name}`,c,desc,`La respuesta de ${r.url} no incluye ${name}.`,rem,['OWASP Secure Headers'])}};
+ need('content-security-policy','MEDIA','Sin CSP, el navegador no limita el origen de scripts, lo que agrava un XSS.',"Definir Content-Security-Policy restrictiva (default-src 'self').");
+ if(!h('x-frame-options')&&!/frame-ancestors/i.test(h('content-security-policy')||''))need('x-frame-options','MEDIA','El sitio puede embeberse en iframes de terceros (clickjacking).','Enviar X-Frame-Options: DENY o frame-ancestors en CSP.');
+ need('x-content-type-options','BAJA','Permite MIME sniffing.','Enviar X-Content-Type-Options: nosniff.');
+ need('referrer-policy','BAJA','Las URLs completas pueden filtrarse por Referer.','Enviar Referrer-Policy: strict-origin-when-cross-origin.');
+ need('permissions-policy','BAJA','No se restringen APIs del navegador (cámara, geolocalización).','Definir Permissions-Policy.');
+ if(new URL(r.url).protocol==='https:')need('strict-transport-security','MEDIA','Sin HSTS es posible un downgrade a HTTP.','Enviar Strict-Transport-Security: max-age=31536000; includeSubDomains.');
+ else add('MEDIA','CONFIRMADA','El sitio se sirve por HTTP sin cifrar',c,'El tráfico viaja sin cifrado.',`URL final: ${r.url}`,'Habilitar HTTPS y redirigir todo el tráfico.',['CWE-319']);
+ for(const k of['server','x-powered-by','x-aspnet-version']){const v=h(k);if(v&&/\d/.test(v)){n++;add('BAJA','CONFIRMADA',`Divulgación de versión en ${k}`,c,'Revelar versiones facilita buscar vulnerabilidades conocidas.',`${k}: ${v}`,'Ocultar o generalizar la cabecera.',['CWE-200'])}}
+ const cc=h('cache-control')||'';if(/login|account|admin|profile/i.test(r.url)&&!/no-store/i.test(cc))add('BAJA','POTENCIAL','Ruta sensible sin Cache-Control: no-store',r.url,'Contenido de sesión podría quedar en cachés.',`Cache-Control: ${cc||'(ausente)'}`,'Usar Cache-Control: no-store.');
+ return n}
+
+// ---------- Fingerprint ----------
+function fingerprint(r){
+ const t=(name,cat,ver,conf,ev)=>T.push({name,category:cat,version:ver||null,confidence:conf,evidence:ev});
+ const s=r.headers.get('server'),p=r.headers.get('x-powered-by');
+ if(s){const m=s.match(/^([\w.-]+)\/?([\d.]+)?/);t(m?m[1]:s,'Servidor',m&&m[2],'ALTA','Server: '+s)}
+ if(p)t(p.split('/')[0],'Lenguaje/Framework',(p.match(/[\d.]+/)||[])[0],'ALTA','X-Powered-By: '+p);
+ const g=(r.text.match(/<meta[^>]+name=["']generator["'][^>]+content=["']([^"']+)/i)||[])[1];if(g)t(g.split(' ')[0],'CMS',(g.match(/[\d.]+/)||[])[0],'ALTA','meta generator: '+g);
+ const sig=[[/wp-content|wp-includes/i,'WordPress','CMS'],[/sites\/default\/files|drupal/i,'Drupal','CMS'],[/\/media\/jui\/|joomla/i,'Joomla','CMS'],[/__NEXT_DATA__/,'Next.js','Framework'],[/ng-version|ng-app/i,'Angular','Framework'],[/data-reactroot|react(\.min)?\.js/i,'React','Framework'],[/jquery[-.]?([\d.]+)?(\.min)?\.js/i,'jQuery','Librería'],[/bootstrap/i,'Bootstrap','Librería']];
+ for(const[re,n,c]of sig){const m=r.text.match(re);if(m&&!T.some(x=>x.name===n))t(n,c,m[1],'MEDIA','Patrón en HTML: '+m[0])}
+ if(r.headers.get('cf-ray'))t('Cloudflare','CDN/Proxy',null,'ALTA','cf-ray');
+ if(!g&&r.text.length<2500&&/<div id=["'](root|app)["']/.test(r.text))log('El sitio parece una SPA: agregá URLs semilla (ej. endpoints de API).','WARN')}
+
+// ---------- Exposición (con anti-Soft-404) ----------
+const EXPO=[
+ ['/.env','CRÍTICA','Archivo .env expuesto',/^[A-Z_]{3,}=.+/m,'Contiene variables de entorno y posibles credenciales.'],
+ ['/.git/HEAD','ALTA','Repositorio .git expuesto',/^ref:\s*refs\//m,'Permite reconstruir el código fuente.'],
+ ['/phpinfo.php','MEDIA','phpinfo() expuesto',/phpinfo\(\)|PHP Version/i,'Revela configuración interna.'],
+ ['/server-status','MEDIA','server-status de Apache accesible',/Apache Server Status/i,'Expone peticiones en curso.'],
+ ['/_profiler/','MEDIA','Symfony Profiler accesible',/Symfony Profiler/i,'Expone datos de depuración.'],
+ ['/backup.zip','ALTA','Posible backup descargable',null,'Un backup público filtra código y datos.'],
+ ['/uploads/','BAJA','Listado de directorio en /uploads/',/Index of \//i,'El listado facilita enumerar archivos.'],
+ ['/admin/','INFORMACIÓN','Panel /admin/ accesible',null,'Superficie de ataque administrativa visible.'],
+ ['/graphql','INFORMACIÓN','Endpoint /graphql presente',/graphql|"errors"|"data"/i,'Verificar introspección y autorización.'],
+ ['/.well-known/security.txt','INFORMACIÓN','security.txt presente',/Contact:/i,'Buena práctica: canal de reporte.']];
+async function exposure(rq){
+ let prof=null;try{prof=await rq.get('/non_existent_check_9948274a1b0c.html')}catch{}
+ for(const[p,sev,title,re,desc]of EXPO){
+  try{const r=await rq.get(p);if(r.status!==200)continue;
+   if(prof&&prof.status===200&&Math.abs(prof.text.length-r.text.length)<Math.max(64,prof.text.length*.05))continue; // soft-404
+   if(re?!re.test(r.text):/html/i.test(r.ct))continue;
+   add(sev,re?'CONFIRMADA':'POTENCIAL',title,rq.base.origin+p,desc,`HTTP 200, ${r.ct||'sin content-type'}, ${r.text.length} bytes`,'Restringir el acceso o eliminar el recurso del servidor web.',['CWE-538']);
+  }catch(e){if(/Tiempo máximo|alcance/.test(e.message))break}}}
+
+// ---------- Crawler ----------
+async function crawl(rq,seeds,maxP,maxD){
+ const seen=new Set(),pts=new Map(),q=[...seeds.map(s=>[s,0]),['/',0]];let pages=0;
+ const SKIP=/logout|signout|delete|remove|destroy/i;
+ while(q.length&&pages<maxP){
+  const[u,d]=q.shift();let url;try{url=new URL(u,rq.base)}catch{continue}
+  url.hash='';const key=url.href;if(seen.has(key)||!rq.inScope(url)||SKIP.test(url.pathname+url.search))continue;seen.add(key);
+  let r;try{r=await rq.go(url)}catch(e){if(/Tiempo máximo/.test(e.message))break;continue}
+  pages++;if(!/html/i.test(r.ct))continue;
+  if([...url.searchParams].length){const ps={};url.searchParams.forEach((v,k)=>ps[k]=v);pts.set('GET '+url.origin+url.pathname+'?'+Object.keys(ps).sort(),{method:'GET',url:url.origin+url.pathname,params:ps})}
+  const doc=new DOMParser().parseFromString(r.text,'text/html');
+  doc.querySelectorAll('a[href]').forEach(a=>{if(d<maxD)q.push([new URL(a.getAttribute('href'),r.url).href,d+1])});
+  doc.querySelectorAll('form').forEach(f=>{
+   const m=(f.method||'get').toUpperCase(),act=new URL(f.getAttribute('action')||r.url,r.url),ps={};
+   f.querySelectorAll('input[name],textarea[name],select[name]').forEach(i=>{if(!['file','button','image'].includes(i.type))ps[i.name]=i.value||'test'});
+   if(Object.keys(ps).length&&rq.inScope(act))pts.set(m+' '+act.origin+act.pathname+'?'+Object.keys(ps).sort(),{method:m,url:act.origin+act.pathname,params:ps})});
+ }
+ return{pages_visited:pages,injection_points:pts.size,points:[...pts.values()]}}
+
+// ---------- Inyección (detección no destructiva) ----------
+const SQLSIG=[[/you have an error in your sql syntax/i,'MySQL/MariaDB'],[/warning:\s*mysqli?_|mysql_fetch/i,'MySQL (PHP)'],[/unclosed quotation mark after the character string|\[sql server\]/i,'SQL Server'],[/pg_query\(\)|unterminated quoted string at or near|syntax error at or near/i,'PostgreSQL'],[/sqlite_error|sqlite3?\.operationalerror|near ".{0,20}": syntax error/i,'SQLite'],[/ora-\d{5}|quoted string not properly terminated/i,'Oracle'],[/sqlstate\[[0-9a-z]+\]|sqlexception|jdbc|hibernate/i,'SQL genérico']];
+const REDIR=new Set('next url redirect redirect_to redirect_uri return returnurl return_url returnto goto dest destination continue redir target to link forward'.split(' '));
+const SKIPP=/(csrf|token|nonce|authenticity|viewstate|captcha|submit|login|logout)/i, rnd=()=>Math.random().toString(36).slice(2,9);
+async function inject(rq,pts,post){
+ let tested=0,max=80;const done=new Set(),once=(k)=>done.has(k)?false:(done.add(k),true);
+ const send=(p,ps)=>p.method==='POST'?rq.post(p.url,ps):rq.get(p.url,ps);
+ for(const p of pts.filter(x=>x.method==='GET'||post))for(const n of Object.keys(p.params)){
+  if(tested>=max){log(`Límite de ${max} parámetros alcanzado.`,'WARN');return tested}
+  if(SKIPP.test(n))continue;tested++;const comp=`${p.method} ${p.url} (parámetro: ${n})`;
+  try{
+   const base=await send(p,{...p.params});
+   // XSS reflejado
+   const tag='zq'+rnd(),can='cs'+rnd(),pl=`${can}"'<${tag}>`;let r=await send(p,{...p.params,[n]:pl});
+   if(/html/i.test(r.ct)&&r.text.includes(can)){
+    if(r.text.includes(`<${tag}>`)&&once('x'+comp)){const i=r.text.indexOf(`<${tag}>`);add('ALTA','CONFIRMADA',`XSS reflejado en '${n}'`,comp,'El valor enviado vuelve en el HTML sin codificar < y >.',`Marcador: ${pl}\n...${r.text.slice(Math.max(0,i-60),i+tag.length+40).replace(/\n/g,' ')}...`,'Codificar la salida según contexto y aplicar CSP.',['CWE-79','OWASP A03:2021'])}
+    else if(r.text.includes(`${can}"`)&&once('xa'+comp))add('MEDIA','POTENCIAL',`Posible XSS (comillas sin escapar) en '${n}'`,comp,'Las comillas vuelven sin escapar; puede haber XSS en atributos.',`Marcador: ${pl}`,'Escapar comillas en atributos HTML.',['CWE-79'])}
+   // SQLi por errores
+   r=await send(p,{...p.params,[n]:(p.params[n]||'1')+"'"});
+   for(const[re,db]of SQLSIG)if(re.test(r.text)&&!re.test(base.text)&&once('s'+comp)){const m=r.text.match(re)[0];add('ALTA','CONFIRMADA',`SQLi basada en errores en '${n}' (${db})`,comp,'Una comilla simple provocó un error SQL visible que no estaba en la respuesta base.',`Error observado: ${m}`,'Usar consultas parametrizadas y ocultar errores de BD.',['CWE-89','OWASP A03:2021']);break}
+   // Open redirect
+   if(REDIR.has(n.toLowerCase())){try{await send(p,{...p.params,[n]:'https://audit-canary.example/'})}catch(e){if(e.redirect&&/audit-canary\.example/.test(e.redirect)&&once('r'+comp))add('MEDIA','CONFIRMADA',`Open redirect en '${n}'`,comp,'La aplicación redirige a un dominio externo controlado por el atacante.',`Redirección a: ${e.redirect}`,'Validar destinos contra una lista blanca.',['CWE-601'])}}
+  }catch(e){if(!e.redirect)log(`Prueba omitida (${n}): ${e.message}`,'WARN')}}
+ return tested}
+
+// ---------- Orquestador ----------
+async function run(){
+ if(running)return;if(!$('#consent').checked)return alert('Debe certificar autorización para auditar el sitio.');
+ let t=$('#url').value.trim();if(!t)return alert('Ingresá una URL.');if(!/^https?:\/\//i.test(t))t='https://'+t;
+ let u;try{u=new URL(t)}catch{return alert('URL inválida.')}
+ running=true;$('#go').disabled=true;F=[];T=[];LOGS=[];$('#term').innerHTML='';
+ const loop=/^(localhost|127\.|\[::1\])/.test(u.hostname)||u.hostname.endsWith('.localhost');
+ const rate=Math.min(+$('#rate').value,loop?20:3),t0=Date.now(),start=new Date().toISOString(),active=$('#mode').value==='active_safe';
+ const hd={};$('#hdrs').value.split('\n').forEach(l=>{const i=l.indexOf(':');if(i>0)hd[l.slice(0,i).trim()]=l.slice(i+1).trim()});
+ const rq=new Req(u.href,rate,8,240,hd);let crawlInfo={},resp=null,tested=0;
+ try{
+  log(`Auditoría sobre ${u.host} | modo ${$('#mode').value} | ${rate} req/s`,'INFO',5);
+  if($('#lurl').value&&$('#luser').value){try{
+   const lp=await rq.get($('#lurl').value),d=new DOMParser().parseFromString(lp.text,'text/html'),data={};
+   d.querySelectorAll('input[type=hidden][name]').forEach(i=>data[i.name]=i.value);
+   data[$('#lfu').value]=$('#luser').value;data[$('#lfp').value]=$('#lpass').value;data.Login=data.Login||'Login';
+   const lr=await rq.post($('#lurl').value,data);log(`Login enviado (HTTP ${lr.status}).`,'SUCCESS')}catch(e){log('Falló el login: '+e.message,'WARN')}}
+  log('Evaluando respuesta base HTTP...','PHASE',15);
+  try{resp=await rq.get('/');log(`HTTP ${resp.status} (${resp.text.length} bytes)`,'SUCCESS',25)}
+  catch(e){log('No hubo respuesta: '+e.message+' (¿CORS o sitio caído?)','ERROR')}
+  if(resp){
+   log('Reconocimiento de tecnologías...','PHASE',35);fingerprint(resp);
+   log('Auditando cabeceras de seguridad...','PHASE',50);
+   const readable=[...resp.headers.keys()].length;if(readable<=4)log(`Solo ${readable} cabeceras legibles: el navegador oculta las que el servidor no expone por CORS (Access-Control-Expose-Headers). Los resultados de cabeceras pueden ser incompletos.`,'WARN');
+   analyzeHeaders(resp,u.origin)}
+  if(active&&resp){
+   log('Buscando archivos y rutas expuestas...','PHASE',65);await exposure(rq);
+   if($('#mode').value==='active_safe'){
+    log('Rastreando sitio y buscando puntos de inyección...','PHASE',80);
+    crawlInfo=await crawl(rq,$('#seeds').value.split('\n').map(s=>s.trim()).filter(Boolean),+$('#pages').value,+$('#depth').value);
+    log(`Rastreo: ${crawlInfo.pages_visited} páginas, ${crawlInfo.injection_points} puntos de inyección.`,'INFO');
+    if(crawlInfo.injection_points){log('Probando XSS reflejado, SQLi por errores y open redirect...','PHASE',90);tested=await inject(rq,crawlInfo.points,$('#post').checked);crawlInfo.parameters_tested=tested}
+    else log('Sin parámetros que probar: configurá login/cabeceras o URLs semilla.','WARN');delete crawlInfo.points}}
+ }catch(e){log('Error crítico: '+e.message,'ERROR')}
+ add('INFORMACIÓN','REQUIERE_VALIDACION','Lógica de negocio, IDOR/BOLA, XSS almacenado y SQLi ciega: validación manual requerida',u.origin,'No se detectan automáticamente: requieren credenciales de varios roles y pruebas manuales.',tested?`Se probaron ${tested} parámetros; sin hallazgos no implica ausencia de estas variantes.`:'Pruebas activas no ejecutadas o sin puntos de inyección.','Complementar con revisión manual y OWASP ZAP/Burp.');
+ if(!resp)F.unshift({id:'SCAN-INCOMPLETE',severity:'INFORMACIÓN',status:'INFORMATIVO',title:'Auditoría incompleta: sin respuesta HTTP',affected_component:u.href,technical_description:'No se pudo leer la página principal (CORS, timeout, firewall o sitio caído). El puntaje no es representativo.',evidence:'Ver el log.',remediation:'Verificar CORS del objetivo o usar la versión con servidor.',references:[],timestamp:new Date().toISOString()});
+ const c={critical:0,high:0,medium:0,low:0,info:0},k={'CRÍTICA':'critical','ALTA':'high','MEDIA':'medium','BAJA':'low','INFORMACIÓN':'info'};let pen=0;
+ F.forEach(f=>{c[k[f.severity]]++;pen+=PEN[f.severity]*(f.status==='CONFIRMADA'?1:.6)});
+ const score=Math.max(0,Math.round(100-pen)),rating=!resp?'INCOMPLETO (sin respuesta HTTP)':score>=90?'EXCELENTE':score>=75?'ACEPTABLE':score>=50?'DEFICIENTE':'CRÍTICO';
+ const dur=(Date.now()-t0)/1e3;
+ REP={scan_id:'SCAN-'+new Date().toISOString().replace(/\D/g,'').slice(0,14)+'-'+rnd().toUpperCase().slice(0,6),target_url:u.href,domain:u.hostname,start_time:start,end_time:new Date().toISOString(),duration_seconds:+dur.toFixed(2),technologies:T,findings:F,summary:{...c,total:F.length,security_score:score,rating,confirmed:F.filter(f=>f.status==='CONFIRMADA').length,potential:F.filter(f=>f.status==='POTENCIAL').length},crawl_info:crawlInfo,logs:LOGS};
+ log(`Auditoría concluida en ${dur.toFixed(1)}s. Score: ${score}/100`,'SUCCESS',100);
+ render();running=false;$('#go').disabled=false}
+
+// ---------- Render ----------
+function render(){
+ if(!REP)return;const s=REP.summary;
+ $('#stats').innerHTML=`<div><b>${s.security_score}</b>${esc(s.rating)}</div><div><b style="color:var(--c)">${s.critical}</b>Críticas</div><div><b style="color:var(--h)">${s.high}</b>Altas</div><div><b style="color:var(--m)">${s.medium}</b>Medias</div><div><b style="color:var(--l)">${s.low}</b>Bajas</div><div><b>${s.confirmed}</b>Confirmadas</div><div><b>${REP.technologies.length}</b>Tecnologías</div>`;
+ $('#meta').innerHTML=`<b>Dominio:</b> ${esc(REP.domain)} · <b>URL:</b> ${esc(REP.target_url)} · <b>Fecha:</b> ${esc(REP.start_time)} · <b>Duración:</b> ${REP.duration_seconds}s · <b>ID:</b> ${esc(REP.scan_id)}`;
+ $('#tech').innerHTML=REP.technologies.map(x=>`<span class="chip" title="${esc(x.evidence)}">${esc(x.name)}${x.version?' '+esc(x.version):''} · ${esc(x.category)}</span>`).join('')||'—';
+ const sv=$('#fsev').value,st=$('#fst').value,q=$('#fq').value.toLowerCase();
+ $('#list').innerHTML=REP.findings.filter(f=>(!sv||f.severity===sv)&&(!st||f.status===st)&&(!q||(f.title+f.affected_component).toLowerCase().includes(q))).map(f=>
+  `<div class="f ${f.severity}" onclick="this.classList.toggle('open')"><span class="tag">${f.severity}</span><span class="tag">${f.status}</span><b>${esc(f.title)}</b><div style="color:var(--dim);font-size:12px">${esc(f.affected_component)}</div>
+  <div class="det"><p>${esc(f.technical_description)}</p><b>Evidencia</b><pre>${esc(f.evidence)}</pre><b>Remediación</b><p>${esc(f.remediation)}</p>${(f.references||[]).map(r=>`<span class="tag">${esc(r)}</span>`).join('')}</div></div>`).join('')||'<p style="color:var(--dim)">Sin hallazgos.</p>'}
+['fsev','fst'].forEach(i=>$('#'+i).onchange=render);$('#fq').oninput=render;
+$('#go').onclick=run;
+$('#exj').onclick=()=>{if(!REP)return;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(REP,null,2)],{type:'application/json'}));a.download=REP.scan_id+'.json';a.click()};
+$('#exp').onclick=()=>window.print();
+$('#imp').onclick=()=>$('#file').click();
+$('#file').onchange=async e=>{try{REP=JSON.parse(await e.target.files[0].text());render()}catch{alert('JSON inválido.')}};
+</script></body></html>
